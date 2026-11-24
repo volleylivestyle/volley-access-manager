@@ -79,6 +79,9 @@ function initFirebase(){ if(!isConfigured()){ $("setupNotice").classList.remove(
    $("googleLogin").addEventListener("click",async()=>{
      try{
        const provider=new firebase.auth.GoogleAuthProvider();
+       // Forza la visualizzazione del selettore Google anche quando sul telefono
+       // è già attivo un altro account nel browser.
+       provider.setCustomParameters({ prompt: "select_account" });
        const result=await auth.signInWithPopup(provider);
        if(!result.user || result.user.uid !== OWNER_UID){
          await auth.signOut();
