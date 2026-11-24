@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101c35">
+  <title>Volley Access Manager</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark">V<span>+</span></div>
+    <div class="brand-copy"><strong>VOLLEY ACCESS MANAGER</strong><small>Gestione autorizzazioni YouTube</small></div>
+    <div id="userBadge" class="user-badge hidden"><span id="userName"></span><button id="logoutBtn" class="quiet">Esci</button></div>
+  </header>
+
+  <main class="shell">
+    <section id="setupNotice" class="notice hidden">
+      <h2>Configurazione Firebase necessaria</h2>
+      <p>Apri <code>app.js</code> e inserisci la configurazione del tuo progetto Firebase. Le istruzioni complete sono nel file README.</p>
+    </section>
+
+    <section id="loginPanel" class="login-panel">
+      <div class="eyebrow">VOLLEYLIFESTYLE · ACCESSI PRIVATI</div>
+      <h1>Tutti gli accessi,<br><span>in un unico posto.</span></h1>
+      <p class="intro">Gestisci gli indirizzi Google degli atleti autorizzati a vedere le registrazioni private delle dirette.</p>
+      <button id="googleLogin" class="google-btn"><span class="google-g">G</span> Accedi con Google</button>
+      <p class="privacy-note">Il tuo elenco è privato e collegato al tuo account.</p>
+    </section>
+
+    <section id="appPanel" class="hidden">
+      <div class="welcome-row">
+        <div><div class="eyebrow">AREA PERSONALE</div><h1>Accessi <span>autorizzati</span></h1></div>
+        <div class="count-card"><strong id="countTotal">0/20</strong><small>contatti salvati</small></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat"><span class="stat-dot active-dot"></span><div><strong id="countActive">0</strong><small>Attivi</small></div></div>
+        <div class="stat"><span class="stat-dot inactive-dot"></span><div><strong id="countInactive">0</strong><small>Non attivi</small></div></div>
+        <div class="stat"><span class="stat-dot capacity-dot"></span><div><strong id="countFree">20</strong><small>Posti disponibili</small></div></div>
+      </div>
+
+      <section class="panel add-panel">
+        <div class="panel-heading"><div><h2>Aggiungi autorizzato</h2><p>Inserisci l'indirizzo Google usato su YouTube.</p></div><span class="step-number">01</span></div>
+        <form id="addForm" class="add-form">
+          <label><span>Nome atleta <small>(facoltativo)</small></span><input id="athleteName" maxlength="60" placeholder="Es. Giulia Rossi"></label>
+          <label class="email-field"><span>Email Google</span><input id="athleteEmail" type="email" maxlength="254" required placeholder="nome@gmail.com"></label>
+          <button id="addBtn" class="primary-btn" type="submit">+ Aggiungi</button>
+        </form>
+        <p id="formMessage" class="form-message" aria-live="polite"></p>
+      </section>
+
+      <section class="panel list-panel">
+        <div class="panel-heading list-heading"><div><h2>Rubrica autorizzati</h2><p>Attiva o disattiva un contatto senza eliminarlo.</p></div><span class="step-number">02</span></div>
+        <div class="toolbar"><input id="searchInput" class="search" type="search" placeholder="Cerca nome o email…"><select id="filterSelect" aria-label="Filtra contatti"><option value="all">Tutti</option><option value="active">Attivi</option><option value="inactive">Non attivi</option></select></div>
+        <div id="contactList" class="contact-list"><div class="empty-state">Caricamento rubrica…</div></div>
+        <div class="copy-area"><div><strong>Pronto per YouTube Studio?</strong><p>Copia le email attive, una per riga, da incollare nella condivisione privata.</p></div><button id="copyActiveBtn" class="primary-btn">Copia email attive</button></div>
+        <div class="secondary-actions"><button id="copyAllBtn" class="text-btn">Copia tutti gli indirizzi</button><button id="exportBtn" class="text-btn">Esporta CSV</button></div>
+      </section>
+
+      <div class="youtube-note"><span class="yt-icon">▶</span><div><strong>Nota su YouTube</strong><p>Questa rubrica organizza gli indirizzi, ma non assegna i permessi automaticamente. Dopo aver copiato le email, aggiungile alla condivisione privata del video in YouTube Studio.</p></div></div>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <footer>VOLLEY ACCESS MANAGER <span>·</span> Strumento personale per Volleylifestyle</footer>
+  <script src="app.js"></script>
+</body>
+</html>
