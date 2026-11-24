@@ -1,8 +1,33 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/authorizedViewers/{viewerId} {
-      allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    // Unico account proprietario autorizzato a leggere o modificare la rubrica.
+    function isAuthorizedOwner(userId) {
+      return request.auth != null
+        && request.auth.uid == "PdyLtLtceZeNJyFGCIdq657UYVD2"
+        && userId == "PdyLtLtceZeNJyFGCIdq657UYVD2";
     }
+
+    function isValidViewer(data) {
+      return data.keys().hasAll(['name', 'email', 'active', 'createdAt'])
+        && data.keys().hasOnly(['name', 'email', 'active', 'createdAt'])
+        && data.name is string
+        && data.name.size() <= 60
+        && data.email is string
+        && data.email.size() <= 254
+        && data.active is bool
+        && data.createdAt is timestamp;
+    }
+
+    match /users/{userId}/authorizedViewers/{viewerId} {
+      allow read: if isAuthorizedOwner(userId);
+      allow create: if isAuthorizedOwner(userId) && isValidViewer(request.resource.data);
+      allow update: if isAuthorizedOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active'])
+        && request.resource.data.active is bool;
+      allow delete: if isAuthorizedOwner(userId);
+    }
+
+    // Tutti gli altri percorsi restano negati per impostazione predefinita.
   }
 }

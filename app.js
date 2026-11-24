@@ -9,6 +9,8 @@ const firebaseConfig = {
 };
 
 const $ = (id) => document.getElementById(id);
+// Unico account Google autorizzato a utilizzare l'app e leggere la rubrica.
+const OWNER_UID = "PdyLtLtceZeNJyFGCIdq657UYVD2";
 const state = { user: null, db: null, contacts: [], unsubscribe: null, toastTimer: null };
 const MAX_CONTACTS = 20;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -40,7 +42,7 @@ function render(){ const active=state.contacts.filter(c=>c.active), inactive=sta
  actions.append(copy,toggleLabel,del); row.append(avatar,main,actions); list.appendChild(row);
  });
 }
-function subscribeContacts(){ if(state.unsubscribe)state.unsubscribe(); state.unsubscribe=viewerCollection().orderBy("createdAt","asc").onSnapshot(snapshot=>{state.contacts=snapshot.docs.map(d=>({id:d.id,...d.data()}));render();},err=>{console.error(err);toast("Errore nel caricamento della rubrica. Verifica le regole Firestore.");}); }
+function subscribeContacts(){ if(state.unsubscribe)state.unsubscribe(); state.unsubscribe=viewerCollection().orderBy("createdAt","asc").onSnapshot(snapshot=>{state.contacts=snapshot.docs.map(d=>({id:d.id,...d.data()}));render();},err=>{console.error("Errore Firestore:",err.code||err.message);toast("Errore nel caricamento della rubrica. Verifica le regole Firestore.");}); }
 async function addContact(event){ event.preventDefault(); const name=$("athleteName").value.trim(), email=$("athleteEmail").value.trim().toLowerCase();
  if(!emailPattern.test(email)){setMessage("Inserisci un indirizzo email valido.");return;}
  if(state.contacts.length>=MAX_CONTACTS){setMessage("Hai raggiunto il limite di 20 contatti.");return;}
@@ -54,13 +56,44 @@ async function updateContact(id,changes){ try{await viewerCollection().doc(id).u
 async function deleteContact(contact){ if(!confirm(`Eliminare ${contact.name||contact.email} dalla rubrica?`))return; try{await viewerCollection().doc(contact.id).delete();toast("Contatto eliminato.");}catch(e){console.error(e);toast("Eliminazione non riuscita.");} }
 function exportCsv(){ const rows=[["Nome","Email","Stato"],...state.contacts.map(c=>[c.name||"",c.email,c.active?"Attivo":"Non attivo"])]; const csv="\uFEFF"+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(";")).join("\r\n"); const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"}); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url;a.download="volley-access-manager.csv";a.click();URL.revokeObjectURL(url);toast("Esportazione CSV pronta."); }
 function initFirebase(){ if(!isConfigured()){ $("setupNotice").classList.remove("hidden"); $("googleLogin").disabled=true; $("googleLogin").textContent="Configura Firebase per iniziare"; return; }
- try{firebase.initializeApp(firebaseConfig);state.db=firebase.firestore();const auth=firebase.auth();auth.onAuthStateChanged(user=>{state.user=user;if(user){showApp(user);subscribeContacts();}else{if(state.unsubscribe)state.unsubscribe();state.contacts=[];showLogin();}});
- $("googleLogin").addEventListener("click",async()=>{try{const provider=new firebase.auth.GoogleAuthProvider();await auth.signInWithPopup(provider);}catch(e){console.error(e);toast(e.code==="auth/popup-blocked"?"Popup bloccato: consenti i popup per questo sito.":"Accesso Google non riuscito.");}});
- $("logoutBtn").addEventListener("click",()=>auth.signOut());
- }catch(e){console.error(e);$("setupNotice").classList.remove("hidden");}
+ try{
+   firebase.initializeApp(firebaseConfig);
+   state.db=firebase.firestore();
+   const auth=firebase.auth();
+   auth.onAuthStateChanged(async user=>{
+     if(user && user.uid !== OWNER_UID){
+       // Nessun contenuto viene mostrato o caricato per un account diverso dal proprietario.
+       if(state.unsubscribe){state.unsubscribe();state.unsubscribe=null;}
+       state.user=null;state.contacts=[];showLogin();
+       try{await auth.signOut();}catch(e){console.error("Uscita account non autorizzato non riuscita:",e.code||e.message);}
+       toast("Account non autorizzato. L'accesso è riservato all'account proprietario.");
+       return;
+     }
+     state.user=user;
+     if(user){showApp(user);subscribeContacts();}
+     else{
+       if(state.unsubscribe){state.unsubscribe();state.unsubscribe=null;}
+       state.contacts=[];showLogin();
+     }
+   });
+   $("googleLogin").addEventListener("click",async()=>{
+     try{
+       const provider=new firebase.auth.GoogleAuthProvider();
+       const result=await auth.signInWithPopup(provider);
+       if(!result.user || result.user.uid !== OWNER_UID){
+         await auth.signOut();
+         toast("Account non autorizzato. Usa l'account Google proprietario.");
+       }
+     }catch(e){
+       console.error("Accesso Google non riuscito:",e.code||e.message);
+       toast(e.code==="auth/popup-blocked"?"Popup bloccato: consenti i popup per questo sito.":"Accesso Google non riuscito.");
+     }
+   });
+   $("logoutBtn").addEventListener("click",()=>auth.signOut());
+ }catch(e){console.error("Inizializzazione Firebase non riuscita:",e.code||e.message);$("setupNotice").classList.remove("hidden");}
 }
 $("addForm").addEventListener("submit",addContact); $("searchInput").addEventListener("input",render); $("filterSelect").addEventListener("change",render);
-$("copyActiveBtn").addEventListener("click",()=>{const emails=state.contacts.filter(c=>c.active).map(c=>c.email);if(!emails.length){toast("Non ci sono email attive da copiare.");return;}copyText(emails.join("\n"),`${emails.length} email attive copiate.`);});
-$("copyAllBtn").addEventListener("click",()=>{if(!state.contacts.length){toast("La rubrica è vuota.");return;}copyText(state.contacts.map(c=>c.email).join("\n"),"Tutti gli indirizzi copiati.");});
+$("copyActiveBtn").addEventListener("click",()=>{const emails=state.contacts.filter(c=>c.active).map(c=>c.email);if(!emails.length){toast("Non ci sono email attive da copiare.");return;}copyText(emails.join(", "),`${emails.length} email attive copiate, separate da virgola.`);});
+$("copyAllBtn").addEventListener("click",()=>{if(!state.contacts.length){toast("La rubrica è vuota.");return;}copyText(state.contacts.map(c=>c.email).join(", "),"Tutti gli indirizzi copiati, separati da virgola.");});
 $("exportBtn").addEventListener("click",exportCsv);
 initFirebase();
